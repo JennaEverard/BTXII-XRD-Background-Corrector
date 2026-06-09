@@ -73,12 +73,6 @@ ui <- fluidPage(
             accept=".zip"
           ),
           
-          # Prompt for a file name to name all files to save
-          textInput(
-            inputId="filename",
-            label="Sample Name (for naming output files): "
-          ),
-          
           radioButtons(
             "units",
             "X-axis units for XRD display plot (* Feature coming soon!)",
@@ -90,8 +84,18 @@ ui <- fluidPage(
 
         mainPanel(
           plotOutput("XRD_both_patterns"),
+          br(),br(),
           plotOutput("XRD_background_corrected"),
+          br(),br(),
+          
+          downloadButton(
+            "download_xrd_corrected",
+            "Save Background-Corrected XRD"
+          ),
+          br(),br(),
+          
           plotOutput("XRF_both_patterns"),
+          br(),br(),
           plotOutput("XRF_background_corrected")
         )
     )
@@ -102,7 +106,7 @@ server <- function(input, output) {
 
     plots <- reactive({
       
-      req(input$datazipfile, input$blankzipfile, input$filename)
+      req(input$datazipfile, input$blankzipfile)
       
       data_fp <- input$datazipfile$datapath
       blank_fp <- input$blankzipfile$datapath
@@ -262,7 +266,8 @@ server <- function(input, output) {
              y = "Intensity (au)") +
         theme_minimal()
       
-      list(p1 = p1, p2 = p2, p3 = p3, p4 = p4)
+      list(p1 = p1, p2 = p2, p3 = p3, p4 = p4, 
+           xrd_header = data$header, xrd_corrected = corrected)
       
     })
     
@@ -275,6 +280,27 @@ server <- function(input, output) {
     output$XRF_both_patterns <- renderPlot({plots()$p3})
     
     output$XRF_background_corrected <- renderPlot({plots()$p4})
+    
+    output$download_xrd_corrected <- downloadHandler(
+      filename = function() {
+        paste0(input$filename, "-film-backgroundcorrected.txt")
+      },
+      content = function(file) {
+        p <- plots()
+        header <- p$xrd_header
+        corrected <- p$xrd_corrected
+        con <- file(file, open = "wt")
+        writeLines(header, con)
+        write.table(
+          corrected,
+          file=con,
+          row.names = FALSE,
+          col.names = FALSE,
+          quote = FALSE
+        )
+        close(con)
+      }
+    )
 }
 
 # Run the application 
